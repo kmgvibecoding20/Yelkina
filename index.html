@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Командировки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F6F4;
+    --surface: #FFFFFF;
+    --text: #2E3236;
+    --text-2: #6B7177;
+    --accent: #4A6378;
+    --accent-hover: #3C5265;
+    --border: #E1E4E2;
+    --od-bg: #FBEDE6;
+    --od-icon: #B5654A;
+    --ok: #4F7A5C;
+    --radius: 10px;
+    --sticky-h: 64px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 Inter, "PT Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .num, .totals b, .card-count { font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .muted { color: var(--text-2); }
+
+  /* Header */
+  .top { padding: 28px 0 20px; }
+  .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 24px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  .sync { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+  .sync b { font-weight: 500; color: var(--text); }
+  .demo-badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-2); margin-left: 8px; vertical-align: 3px; }
+  .top-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 36px; padding: 0 14px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    font-weight: 500; font-size: 13px;
+  }
+  .btn:hover { border-color: #C9CECB; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn svg { width: 15px; height: 15px; }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .stale {
+    display: none; margin-bottom: 16px; padding: 10px 14px; border-radius: 8px;
+    background: var(--od-bg); color: #7A3F2B; border: 1px solid #F0D5C8; font-size: 13px;
+  }
+  .stale.show { display: block; }
+
+  /* Summary */
+  .summary { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+  .card {
+    text-align: left; background: var(--surface); border: 1px solid var(--border);
+    border-left: 4px solid var(--c); border-radius: var(--radius);
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-height: 104px;
+  }
+  .card:hover { border-color: #C9CECB; border-left-color: var(--c); }
+  .card-label { font-size: 12px; color: var(--text-2); line-height: 1.35; }
+  .card-count { font-size: 28px; font-weight: 600; line-height: 1.1; margin-top: auto; }
+  .card-od { font-size: 12px; color: var(--od-icon); display: flex; align-items: center; gap: 4px; min-height: 18px; }
+  .card-od.none { color: var(--text-2); }
+
+  /* Filters */
+  .filters-wrap { position: sticky; top: 0; z-index: 30; background: var(--bg); padding: 10px 0; border-bottom: 1px solid transparent; transition: border-color .15s; }
+  .filters-wrap.stuck { border-bottom-color: var(--border); }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .field { position: relative; }
+  .input, .ms-btn {
+    height: 36px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+    padding: 0 12px; font-size: 13px;
+  }
+  .input:focus, .ms-btn:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(74,99,120,.15); }
+  .search { width: 220px; padding-left: 34px; }
+  .search-ico { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-2); pointer-events: none; }
+  .ms-btn { min-width: 150px; max-width: 220px; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; }
+  .ms-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ms-btn.active { border-color: var(--accent); color: var(--accent); }
+  .ms-panel {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 40;
+    min-width: 220px; max-height: 300px; overflow: auto; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px; box-shadow: 0 6px 20px rgba(46,50,54,.08);
+  }
+  .ms-panel.open { display: block; }
+  .ms-panel label { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .ms-panel label:hover { background: var(--bg); }
+  .ms-panel .group { font-size: 11px; color: var(--text-2); padding: 6px 8px 2px; }
+  .ms-empty { padding: 8px; color: var(--text-2); font-size: 13px; }
+  input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+  .period { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+  .period .input { width: 140px; padding: 0 8px; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; height: 36px; padding: 0 4px; }
+  .switch { position: relative; width: 34px; height: 20px; flex: none; }
+  .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; width: 100%; height: 100%; cursor: pointer; }
+  .switch .track { position: absolute; inset: 0; border-radius: 99px; background: #CDD2CF; transition: background .15s; }
+  .switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .switch input:checked + .track { background: var(--od-icon); }
+  .switch input:checked + .track::after { transform: translateX(14px); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .reset { background: none; border: none; color: var(--accent); font-size: 13px; font-weight: 500; padding: 0 6px; height: 36px; }
+  .reset:disabled { color: var(--text-2); opacity: .6; cursor: default; }
+  .filters .spacer { flex: 1; }
+  .found { font-size: 13px; color: var(--text-2); }
+
+  /* Sections */
+  main { padding: 16px 0 8px; }
+  .section {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; scroll-margin-top: calc(var(--sticky-h) + 12px);
+  }
+  .sec-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .sec-bar { width: 4px; align-self: stretch; border-radius: 2px; background: var(--c); flex: none; }
+  .sec-title { font-size: 18px; font-weight: 600; margin: 0; flex: 1; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .sec-title .n { color: var(--text-2); font-weight: 500; }
+  .pill { font-size: 12px; font-weight: 500; padding: 1px 9px; border-radius: 99px; background: var(--bg); color: var(--text-2); }
+  .pill.od { background: var(--od-bg); color: var(--od-icon); }
+  .collapse { width: 32px; height: 32px; border-radius: 8px; border: 1px solid transparent; background: none; display: grid; place-items: center; color: var(--text-2); }
+  .collapse:hover { border-color: var(--border); }
+  .collapse svg { width: 16px; height: 16px; transition: transform .15s; }
+  .section.collapsed .collapse svg { transform: rotate(-90deg); }
+  .section.collapsed .sec-body { display: none; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-weight: 500; font-size: 12px; color: var(--text-2); padding: 0; border-top: 1px solid var(--border); background: #FAFBFA; }
+  th .sort { display: inline-flex; align-items: center; gap: 4px; width: 100%; background: none; border: none; padding: 9px 16px; font-weight: 500; color: inherit; text-align: left; }
+  th .sort:hover { color: var(--text); }
+  th .sort .arr { opacity: 0; font-size: 11px; }
+  th[aria-sort] .sort { color: var(--text); }
+  th[aria-sort] .sort .arr { opacity: 1; }
+  th.act-h { width: 56px; }
+  td { padding: 10px 16px; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr.is-overdue td { background: var(--od-bg); }
+  tr.is-saving td { opacity: .6; }
+  .emp { border-bottom: 1px dotted #B9BEBB; cursor: default; }
+  .od-icon { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-left: 6px; vertical-align: -5px; border: none; background: none; padding: 0; color: var(--od-icon); border-radius: 50%; }
+  .od-icon svg { width: 16px; height: 16px; }
+  .dur { color: var(--text-2); }
+  td.act { text-align: right; padding-right: 12px; }
+  .act-btn { width: 32px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); font-size: 16px; line-height: 1; color: var(--text-2); }
+  .act-btn:hover { color: var(--text); border-color: #C9CECB; }
+  .saving { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+  .empty { padding: 22px 16px; color: var(--text-2); border-top: 1px solid var(--border); text-align: center; }
+  .totals { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 11px 16px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); background: #FAFBFA; border-radius: 0 0 var(--radius) var(--radius); }
+  .totals b { color: var(--text); font-weight: 600; margin-left: 4px; }
+  .totals .od b { color: var(--od-icon); }
+  .totals .filtered { flex-basis: 100%; font-size: 12px; }
+
+  footer { padding: 16px 0 40px; font-size: 12px; color: var(--text-2); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  /* Menu, tooltip, toast */
+  .menu {
+    position: absolute; z-index: 50; min-width: 260px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px; box-shadow: 0 8px 24px rgba(46,50,54,.10); display: none;
+  }
+  .menu.open { display: block; }
+  .menu .mh { font-size: 11px; color: var(--text-2); padding: 4px 8px 6px; }
+  .menu button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; padding: 8px; border-radius: 6px; font-size: 13px; }
+  .menu button:hover, .menu button:focus-visible { background: var(--bg); outline: none; }
+  .menu .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .menu .back { color: var(--text-2); }
+  .menu .sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+  #tip {
+    position: fixed; z-index: 100; max-width: 320px; padding: 7px 10px; border-radius: 6px;
+    background: var(--text); color: #fff; font-size: 12px; line-height: 1.45; pointer-events: none;
+    opacity: 0; transition: opacity .1s;
+  }
+  #tip.show { opacity: 1; }
+
+  .toasts { position: fixed; right: 20px; bottom: 20px; z-index: 120; display: flex; flex-direction: column; gap: 8px; max-width: calc(100vw - 40px); }
+  .toast { background: var(--text); color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 13px; max-width: 380px; box-shadow: 0 6px 20px rgba(46,50,54,.15); }
+  .toast.error { background: #8C4A35; }
+
+  /* Dialogs */
+  dialog { border: none; border-radius: 12px; padding: 0; width: min(480px, calc(100vw - 32px)); color: var(--text); box-shadow: 0 20px 50px rgba(46,50,54,.2); }
+  dialog.wide { width: min(900px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(46,50,54,.35); }
+  .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 0; }
+  .dlg-head h2 { font-size: 16px; font-weight: 600; margin: 0; }
+  .dlg-x { width: 32px; height: 32px; border: none; background: none; border-radius: 8px; color: var(--text-2); font-size: 20px; line-height: 1; }
+  .dlg-x:hover { background: var(--bg); }
+  .dlg-body { padding: 12px 20px 4px; }
+  .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 20px 20px; }
+  .dlg-body p { margin: 0 0 12px; }
+  .lbl { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 4px; }
+  textarea.input { width: 100%; height: 84px; padding: 8px 12px; resize: vertical; }
+  .note { font-size: 12px; color: var(--od-icon); margin-top: 6px; }
+  .set-grid { display: grid; grid-template-columns: 1fr 110px; gap: 10px 12px; align-items: center; }
+  .set-grid .input { width: 100%; }
+  .set-grid .hint { font-size: 12px; color: var(--text-2); }
+  .set-sep { grid-column: 1 / -1; height: 1px; background: var(--border); margin: 4px 0; }
+  .chk { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; cursor: pointer; }
+  .log-wrap { max-height: 60vh; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .log-wrap table th { position: sticky; top: 0; padding: 8px 12px; }
+  .log-wrap td { padding: 8px 12px; font-size: 13px; vertical-align: top; }
+  .log-wrap tr:first-child td { border-top: none; }
+
+  /* Responsive */
+  @media (max-width: 1199px) {
+    .summary { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 767px) {
+    .wrap { padding: 0 16px; }
+    .top { padding: 20px 0 14px; }
+    .summary { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .card { min-height: 92px; }
+    .filters-wrap { position: static; }
+    .section { scroll-margin-top: 12px; }
+    .search { width: 100%; }
+    .filters .field:first-child { flex-basis: 100%; }
+    .ms-btn { min-width: 0; max-width: none; width: 100%; }
+    .filters .field.ms { flex: 1 1 140px; }
+    .period { flex-basis: 100%; }
+    .period .input { flex: 1; width: auto; min-width: 0; }
+    .filters .spacer { display: none; }
+    .sec-title { font-size: 16px; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    thead { display: none; }
+    tbody tr { border-top: 1px solid var(--border); padding: 8px 0; position: relative; }
+    tbody tr.is-overdue { background: var(--od-bg); }
+    td { border: none; padding: 4px 16px; display: flex; justify-content: space-between; gap: 12px; text-align: right; }
+    td::before { content: attr(data-label); color: var(--text-2); font-size: 12px; text-align: left; flex: none; }
+    td.act { position: absolute; top: 6px; right: 0; width: auto; padding: 0 12px; }
+    td.act::before { content: none; }
+    td:first-child { padding-right: 60px; }
+    .set-grid { grid-template-columns: 1fr 90px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div>
+      <h1>Командировки <span class="demo-badge" title="Данные сгенерированы, обмен с 1С имитируется">демо</span></h1>
+      <div class="sync">Синхронизация с 1С: <b id="syncTime">—</b></div>
+    </div>
+    <div class="top-actions">
+      <button class="btn" id="btnLog" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        Журнал
+      </button>
+      <button class="btn" id="btnSettings" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68 1.65 1.65 0 0 0 10 3.17V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Настройки
+      </button>
+      <button class="btn btn-primary" id="btnRefresh" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        <span>Обновить</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stale" id="stale" role="status"></div>
+  <section class="summary" id="summary" aria-label="Сводка по статусам"></section>
+</div>
+
+<div class="filters-wrap" id="filtersWrap">
+  <div class="wrap">
+    <div class="filters" role="search">
+      <div class="field">
+        <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input class="input search" id="fSearch" type="search" placeholder="Поиск по ФИО" aria-label="Поиск по ФИО" autocomplete="off">
+      </div>
+      <div class="field ms" id="msCountry"></div>
+      <div class="field ms" id="msCity"></div>
+      <div class="period">
+        <span>с</span><input class="input" type="date" id="fFrom" aria-label="Период с">
+        <span>по</span><input class="input" type="date" id="fTo" aria-label="Период по">
+      </div>
+      <label class="toggle">
+        <span class="switch"><input type="checkbox" id="fOverdue"><span class="track"></span></span>
+        Только просроченные
+      </label>
+      <button class="reset" id="fReset" type="button">Сбросить фильтры</button>
+      <span class="spacer"></span>
+      <span class="found" id="found" aria-live="polite"></span>
+    </div>
+  </div>
+</div>
+
+<main class="wrap" id="sections"></main>
+
+<footer>
+  <div class="wrap">
+    <span>Командировки · версия 1.0.0 (демо: данные сгенерированы, обмен с 1С имитируется)</span>
+    <span>Ответственный: ИТ-отдел (контакт уточняется)</span>
+  </div>
+</footer>
+
+<div class="menu" id="menu" role="menu"></div>
+<div id="tip" role="tooltip"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<dialog id="dlgConfirm">
+  <form method="dialog" id="confirmForm">
+    <div class="dlg-head"><h2>Смена статуса</h2><button class="dlg-x" value="cancel" aria-label="Закрыть">×</button></div>
+    <div class="dlg-body">
+      <p id="confirmText"></p>
+      <label class="lbl" for="confirmComment" id="confirmLbl">Комментарий (необязательно)</label>
+      <textarea class="input" id="confirmComment" maxlength="500"></textarea>
+      <div class="note" id="confirmNote" hidden>Возврат на предыдущий статус возможен только с комментарием.</div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn" value="cancel">Отмена</button>
+      <button class="btn btn-primary" id="confirmOk" value="ok">Перевести</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgLog" class="wide">
+  <div class="dlg-head"><h2>Журнал изменений</h2><button class="dlg-x" type="button" data-close aria-label="Закрыть">×</button></div>
+  <div class="dlg-body"><div class="log-wrap" id="logBody"></div></div>
+  <div class="dlg-foot"><button class="btn" type="button" data-close>Закрыть</button></div>
+</dialog>
+
+<dialog id="dlgSettings">
+  <form method="dialog" id="settingsForm">
+    <div class="dlg-head"><h2>Настройки</h2><button class="dlg-x" value="cancel" aria-label="Закрыть">×</button></div>
+    <div class="dlg-body">
+      <div class="set-grid">
+        <label for="sN">Порог N: аванс нужно выплатить не позднее чем за N раб. дн. до выезда</label>
+        <input class="input" id="sN" type="number" min="0" max="30">
+        <label for="sM">Порог M: срок обработки отчёта бухгалтерией, раб. дн.</label>
+        <input class="input" id="sM" type="number" min="1" max="60">
+        <label for="sInt">Автообновление из 1С, мин</label>
+        <input class="input" id="sInt" type="number" min="1" max="240">
+        <label for="sRole">Роль пользователя</label>
+        <select class="input" id="sRole"><option value="manager">Руководитель</option><option value="viewer">Наблюдатель</option></select>
+        <div class="set-sep"></div>
+        <div class="hint" style="grid-column:1/-1">Имитация 1С (для проверки сценариев)</div>
+        <label class="chk"><input type="checkbox" id="sFail"> Ошибка записи статуса в 1С</label>
+        <label class="chk"><input type="checkbox" id="sOffline"> 1С недоступна при обновлении</label>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn" value="cancel">Отмена</button>
+      <button class="btn btn-primary" value="ok">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ---------- Справочники ---------- */
+  const STATUSES = [
+    { id: 1, name: 'Командировка оформлена',                short: 'Оформлена',             color: '#8FA3B5' },
+    { id: 2, name: 'Требуется начисление денежных средств', short: 'Требуется начисление',  color: '#C9B28A' },
+    { id: 3, name: 'Денежные средства начислены',           short: 'Средства начислены',    color: '#8FAF9A' },
+    { id: 4, name: 'Завершена, отчёта нет',                 short: 'Отчёта нет',            color: '#C49A92' },
+    { id: 5, name: 'Завершена, отчёт сдан',                 short: 'Отчёт сдан',            color: '#A39BB8' },
+    { id: 6, name: 'Отчёт обработан бухгалтерией',          short: 'Обработан',             color: '#9AA68A' },
+  ];
+  const S = id => STATUSES[id - 1];
+
+  // Производственный календарь (в рабочей версии приходит из 1С)
+  const HOLIDAYS = new Set([
+    '2026-01-01','2026-01-02','2026-01-05','2026-01-06','2026-01-07','2026-01-08','2026-01-09',
+    '2026-02-23','2026-03-09','2026-05-01','2026-05-11','2026-06-12','2026-11-04','2026-12-31',
+    '2027-01-01','2027-01-04','2027-01-05','2027-01-06','2027-01-07','2027-01-08',
+    '2027-02-23','2027-03-08','2027-05-03','2027-05-10','2027-06-14','2027-11-04','2027-12-31',
+  ]);
+
+  /* ---------- Даты ---------- */
+  const DAY = 86400000;
+  const pad = n => String(n).padStart(2, '0');
+  const sod = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const today = () => sod(new Date());
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parseIso = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const fmtDate = d => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+  const fmtDT = d => `${fmtDate(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const daysIncl = (a, b) => Math.round((b - a) / DAY) + 1;
+  const isWorkday = d => d.getDay() !== 0 && d.getDay() !== 6 && !HOLIDAYS.has(iso(d));
+  const workdaysAfter = (a, b) => { let n = 0; for (let d = addDays(a, 1); d <= b; d = addDays(d, 1)) if (isWorkday(d)) n++; return n; };
+  const addWorkdays = (d, n) => { let x = d; while (n > 0) { x = addDays(x, 1); if (isWorkday(x)) n--; } return x; };
+
+  const plural = (n, f) => { const a = n % 100, b = n % 10; return f[(a > 10 && a < 20) ? 2 : b === 1 ? 0 : (b >= 2 && b <= 4) ? 1 : 2]; };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  /* ---------- Хранилище (только удобства пользователя) ---------- */
+  const store = {
+    get(k, def) { try { const v = localStorage.getItem('trips.' + k); return v == null ? def : JSON.parse(v); } catch { return def; } },
+    set(k, v) { try { localStorage.setItem('trips.' + k, JSON.stringify(v)); } catch { /* недоступно */ } },
+  };
+
+  /* ---------- Демо-данные (имитация ответа 1С) ---------- */
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const R = rng(20261007);
+  const ri = (a, b) => a + Math.floor(R() * (b - a + 1));
+  const pick = arr => arr[Math.floor(R() * arr.length)];
+
+  const EMPLOYEES = [
+    'Иванов Иван Иванович', 'Петров Алексей Сергеевич', 'Сидоров Михаил Андреевич', 'Кузнецов Дмитрий Олегович',
+    'Смирнов Павел Викторович', 'Волков Артём Николаевич', 'Морозов Евгений Игоревич', 'Лебедев Константин Юрьевич',
+    'Новиков Роман Александрович', 'Фёдоров Глеб Валерьевич', 'Орлов Никита Петрович', 'Захаров Илья Борисович',
+    'Ахметов Ержан Маратович', 'Сейтказин Данияр Ерланович', 'Нургалиев Тимур Рустамович', 'Белов Станислав Геннадьевич',
+    'Ким Виктор Олегович', 'Соколова Анна Владимировна', 'Попова Мария Сергеевна', 'Васильева Ольга Петровна',
+    'Павлова Екатерина Андреевна', 'Семёнова Татьяна Ивановна', 'Голубева Наталья Викторовна', 'Виноградова Ирина Алексеевна',
+    'Богданова Светлана Михайловна', 'Абдуллаева Динара Маратовна', 'Жукова Юлия Дмитриевна', 'Кравец Елена Николаевна',
+  ].map((full, i) => ({ id: 'E' + String(i + 1).padStart(3, '0'), full }));
+
+  const PLACES = [
+    ['Россия', 'Москва'], ['Россия', 'Москва'], ['Россия', 'Санкт-Петербург'], ['Россия', 'Казань'],
+    ['Россия', 'Екатеринбург'], ['Россия', 'Новосибирск'], ['Казахстан', 'Астана'], ['Казахстан', 'Алматы'],
+    ['Казахстан', 'Атырау'], ['Беларусь', 'Минск'], ['Узбекистан', 'Ташкент'],
+  ];
+
+  function generate() {
+    const T = today();
+    const out = [];
+    let seq = 1;
+    const make = (status, start, dur, extra = {}) => {
+      const e = pick(EMPLOYEES), [country, city] = pick(PLACES);
+      out.push({ id: 'К-' + String(seq++).padStart(5, '0'), employeeId: e.id, name: e.full, country, city,
+        start, end: addDays(start, dur - 1), status, advancePaid: null, submitted: null, processed: null, ...extra });
+      return out[out.length - 1];
+    };
+    for (let i = 0; i < 8; i++) make(1, addDays(T, ri(8, 40)), ri(2, 9));
+    for (let i = 0; i < 9; i++) make(2, addDays(T, i < 3 ? ri(0, 2) : ri(4, 16)), ri(2, 8));
+    for (let i = 0; i < 10; i++) {
+      const start = addDays(T, ri(-6, 8)), t = make(3, start, ri(3, 10));
+      if (t.end < T) t.end = addDays(T, ri(0, 4));
+      t.advancePaid = addDays(start, -ri(1, 4));
+    }
+    for (let i = 0; i < 11; i++) {
+      const end = addDays(T, -ri(1, 14)), dur = ri(2, 8);
+      make(4, addDays(end, -(dur - 1)), dur, { advancePaid: addDays(end, -dur - 2) });
+    }
+    for (let i = 0; i < 8; i++) {
+      const end = addDays(T, -ri(5, 22)), dur = ri(2, 7);
+      let sub = addDays(end, ri(1, 3)); if (sub > T) sub = T;
+      const t = make(5, addDays(end, -(dur - 1)), dur);
+      t.submitted = i < 3 ? addDays(T, -ri(1, 4)) : sub;
+    }
+    for (let i = 0; i < 14; i++) {
+      const end = addDays(T, -ri(10, 60)), dur = ri(2, 9);
+      const t = make(6, addDays(end, -(dur - 1)), dur);
+      t.submitted = addDays(end, 2); t.processed = addDays(end, 6);
+    }
+    return out;
+  }
+
+  /* ---------- Состояние ---------- */
+  const defaults = { N: 2, M: 5, interval: 15, role: 'manager', fail1c: false, offline1c: false };
+  const settings = { ...defaults, ...store.get('settings', {}) };
+  const state = {
+    trips: generate(),
+    filters: { q: '', countries: new Set(), cities: new Set(), from: '', to: '', overdueOnly: false },
+    sort: Object.fromEntries(STATUSES.map(s => [s.id, { key: 'dates', dir: 1 }])),
+    collapsed: new Set(store.get('collapsed', [])),
+    saving: new Set(),
+    log: [],
+    lastSync: new Date(),
+  };
+  const roleName = () => settings.role === 'manager' ? 'Руководитель' : 'Наблюдатель';
+  state.log.push({ time: new Date(), user: roleName(), kind: 'login' });
+
+  /* ---------- Логика ---------- */
+  const shortName = full => { const [s, n, p] = full.split(' '); return `${s} ${n[0]}. ${p[0]}.`; };
+  function genitive(full) {
+    const [s, n, p] = full.split(' ');
+    const female = /вна$/.test(p);
+    let g = s;
+    if (female) { if (/(ова|ева|ёва|ина|ына)$/.test(s)) g = s.slice(0, -1) + 'ой'; }
+    else if (/ий$/.test(s)) g = s.slice(0, -2) + 'ого';
+    else if (/[бвгджзклмнпрстфхцчшщ]$/.test(s)) g = s + 'а';
+    return `${g} ${n[0]}. ${p[0]}.`;
+  }
+
+  function overdue(t) {
+    const T = today();
+    if (t.status === 2) {
+      if (t.start <= T) return `Командировка началась ${fmtDate(t.start)}, аванс не выплачен.`;
+      let left = 0; for (let d = T; d < t.start; d = addDays(d, 1)) if (isWorkday(d)) left++;
+      if (left < settings.N) return `До начала командировки ${left} раб. ${plural(left, ['день', 'дня', 'дней'])} (норматив — не менее ${settings.N}), аванс не выплачен. Основание: внутренний регламент.`;
+    }
+    if (t.status === 4) {
+      const dl = addWorkdays(t.end, 3);
+      if (T > dl) { const n = workdaysAfter(dl, T); return `Авансовый отчёт не сдан. Срок истёк ${fmtDate(dl)} — 3 раб. дня после возвращения (п. 26 Положения, ПП РФ № 749). Просрочка: ${n} раб. ${plural(n, ['день', 'дня', 'дней'])}.`; }
+    }
+    if (t.status === 5 && t.submitted) {
+      const dl = addWorkdays(t.submitted, settings.M);
+      if (T > dl) { const n = workdaysAfter(dl, T); return `Отчёт сдан ${fmtDate(t.submitted)}, не обработан бухгалтерией. Срок (${settings.M} раб. дн.) истёк ${fmtDate(dl)}. Просрочка: ${n} раб. ${plural(n, ['день', 'дня', 'дней'])}.`; }
+    }
+    return null;
+  }
+
+  const filterActive = () => {
+    const f = state.filters;
+    return f.q.trim().length >= 2 || f.countries.size > 0 || f.cities.size > 0 || !!f.from || !!f.to || f.overdueOnly;
+  };
+  function matches(t) {
+    const f = state.filters, q = f.q.trim().toLowerCase();
+    if (q.length >= 2 && !t.name.toLowerCase().includes(q)) return false;
+    if (f.countries.size && !f.countries.has(t.country)) return false;
+    if (f.cities.size && !f.cities.has(t.city)) return false;
+    if (f.from && t.end < parseIso(f.from)) return false;
+    if (f.to && t.start > parseIso(f.to)) return false;
+    if (f.overdueOnly && !t.od) return false;
+    return true;
+  }
+  const totals = list => ({
+    count: list.length,
+    people: new Set(list.map(t => t.employeeId)).size,
+    days: list.reduce((a, t) => a + daysIncl(t.start, t.end), 0),
+    overdue: list.filter(t => t.od).length,
+  });
+  function sortList(list, { key, dir }) {
+    const cmp = {
+      name: (a, b) => a.name.localeCompare(b.name, 'ru'),
+      dest: (a, b) => (a.country + a.city).localeCompare(b.country + b.city, 'ru'),
+      dates: (a, b) => (a.start - b.start) || (a.end - b.end),
+    }[key];
+    return [...list].sort((a, b) => dir * cmp(a, b) || a.name.localeCompare(b.name, 'ru'));
+  }
+
+  /* ---------- Отрисовка ---------- */
+  const ICON_OD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></svg>';
+  const ICON_CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+
+  function render() {
+    state.trips.forEach(t => { t.od = overdue(t); });
+    const active = filterActive();
+    const visible = state.trips.filter(matches);
+    const by = id => visible.filter(t => t.status === id);
+    const allBy = id => state.trips.filter(t => t.status === id);
+
+    document.getElementById('syncTime').textContent = fmtDT(state.lastSync);
+
+    // Сводка
+    document.getElementById('summary').innerHTML = STATUSES.map(s => {
+      const list = by(s.id), od = list.filter(t => t.od).length;
+      const odHtml = (s.id === 2 || s.id === 4 || s.id === 5)
+        ? (od ? `<span class="card-od">${ICON_OD.replace('<svg', '<svg width="13" height="13"')} Просрочено: ${od}</span>` : `<span class="card-od none">Просрочек нет</span>`)
+        : `<span class="card-od none">&nbsp;</span>`;
+      return `<button type="button" class="card" style="--c:${s.color}" data-goto="${s.id}" aria-label="${esc(s.name)}: ${list.length}${od ? ', просрочено ' + od : ''}. Перейти к разделу">
+        <span class="card-label">${s.id}. ${esc(s.short)}</span>
+        <span class="card-count">${list.length}</span>${odHtml}</button>`;
+    }).join('');
+
+    // Разделы
+    const manager = settings.role === 'manager';
+    document.getElementById('sections').innerHTML = STATUSES.map(s => {
+      const list = by(s.id), sorted = sortList(list, state.sort[s.id]);
+      const tot = totals(list), all = totals(allBy(s.id));
+      const coll = state.collapsed.has(s.id);
+      const st = state.sort[s.id];
+      const th = (key, label) => `<th${st.key === key ? ` aria-sort="${st.dir > 0 ? 'ascending' : 'descending'}"` : ''}><button type="button" class="sort" data-sort="${s.id}:${key}">${label}<span class="arr">${st.key === key && st.dir < 0 ? '▼' : '▲'}</span></button></th>`;
+      const rows = sorted.map(t => {
+        const saving = state.saving.has(t.id);
+        const d = daysIncl(t.start, t.end);
+        return `<tr class="${t.od ? 'is-overdue' : ''} ${saving ? 'is-saving' : ''}">
+          <td data-label="Работник"><span><span class="emp" tabindex="0" data-tip="${esc(t.name)} · ${esc(t.id)}">${esc(shortName(t.name))}</span>${t.od ? `<button type="button" class="od-icon" data-tip="${esc(t.od)}" aria-label="Просрочка: ${esc(t.od)}">${ICON_OD}</button>` : ''}</span></td>
+          <td data-label="Направление">${esc(t.country)}, ${esc(t.city)}</td>
+          <td data-label="Сроки" class="num">${fmtDate(t.start)} – ${fmtDate(t.end)} <span class="dur">(${d} дн.)</span></td>
+          ${manager ? `<td class="act">${saving ? '<span class="saving">Сохранение…</span>' : `<button type="button" class="act-btn" data-action="${esc(t.id)}" aria-haspopup="menu" aria-label="Сменить статус: ${esc(shortName(t.name))}">⋯</button>`}</td>` : ''}
+        </tr>`;
+      }).join('');
+      const showOd = s.id === 2 || s.id === 4 || s.id === 5;
+      return `<section class="section${coll ? ' collapsed' : ''}" id="sec-${s.id}" style="--c:${s.color}" aria-labelledby="sec-t-${s.id}">
+        <div class="sec-head">
+          <span class="sec-bar"></span>
+          <h2 class="sec-title" id="sec-t-${s.id}"><span><span class="n">${s.id}.</span> ${esc(s.name)}</span>
+            <span class="pill">${tot.count}</span>${showOd && tot.overdue ? `<span class="pill od">просрочено ${tot.overdue}</span>` : ''}</h2>
+          <button type="button" class="collapse" data-toggle="${s.id}" aria-expanded="${!coll}" aria-controls="sec-b-${s.id}" aria-label="${coll ? 'Развернуть' : 'Свернуть'} раздел">${ICON_CHEV}</button>
+        </div>
+        <div class="sec-body" id="sec-b-${s.id}">
+          ${list.length ? `<table><thead><tr>${th('name', 'ФИО работника')}${th('dest', 'Направление')}${th('dates', 'Сроки командировки')}${manager ? '<th class="act-h"><span class="sort" style="cursor:default">&nbsp;</span></th>' : ''}</tr></thead><tbody>${rows}</tbody></table>`
+            : `<div class="empty">Нет командировок в этом статусе${active && all.count ? ' (с учётом фильтра)' : ''}</div>`}
+          <div class="totals">
+            <span>Командировок<b>${tot.count}</b></span>
+            <span>Сотрудников<b>${tot.people}</b></span>
+            <span>Дней<b>${tot.days}</b></span>
+            ${showOd ? `<span class="${tot.overdue ? 'od' : ''}">Просрочено<b>${tot.overdue}</b></span>` : ''}
+            ${active ? `<span class="filtered">с учётом фильтра · всего без фильтра: ${all.count} ${plural(all.count, ['командировка', 'командировки', 'командировок'])}, ${all.people} ${plural(all.people, ['сотрудник', 'сотрудника', 'сотрудников'])}, ${all.days} ${plural(all.days, ['день', 'дня', 'дней'])}</span>` : ''}
+          </div>
+        </div>
+      </section>`;
+    }).join('');
+
+    document.getElementById('found').textContent = active ? `Найдено: ${visible.length} из ${state.trips.length}` : '';
+    document.getElementById('fReset').disabled = !active;
+  }
+
+  /* ---------- Мультивыбор ---------- */
+  function multiSelect(root, { all, getOptions, set, label }) {
+    root.innerHTML = `<button type="button" class="ms-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="${label}"><span></span>${ICON_CHEV.replace('<svg', '<svg width="14" height="14"')}</button><div class="ms-panel"></div>`;
+    const btn = root.querySelector('.ms-btn'), panel = root.querySelector('.ms-panel');
+    const update = () => {
+      const v = [...set()];
+      btn.querySelector('span').textContent = !v.length ? all : v.length <= 2 ? v.join(', ') : `${label}: ${v.length}`;
+      btn.classList.toggle('active', v.length > 0);
+    };
+    const build = () => {
+      const opts = getOptions();
+      panel.innerHTML = opts.length ? opts.map(o => o.group
+        ? `<div class="group">${esc(o.group)}</div>`
+        : `<label><input type="checkbox" value="${esc(o.value)}"${set().has(o.value) ? ' checked' : ''}> ${esc(o.value)}</label>`).join('') : '<div class="ms-empty">Нет вариантов</div>';
+    };
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = !panel.classList.contains('open');
+      closeAllPanels();
+      if (open) { build(); panel.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
+    });
+    panel.addEventListener('click', e => e.stopPropagation());
+    panel.addEventListener('change', e => {
+      const v = e.target.value;
+      e.target.checked ? set().add(v) : set().delete(v);
+      update(); onFiltersChanged();
+    });
+    update();
+    return { update };
+  }
+  function closeAllPanels() {
+    document.querySelectorAll('.ms-panel.open').forEach(p => { p.classList.remove('open'); p.previousElementSibling.setAttribute('aria-expanded', 'false'); });
+  }
+
+  const countries = () => [...new Set(state.trips.map(t => t.country))].sort((a, b) => a.localeCompare(b, 'ru'));
+  const msCountry = multiSelect(document.getElementById('msCountry'), {
+    all: 'Все страны', label: 'Страны', set: () => state.filters.countries,
+    getOptions: () => countries().map(value => ({ value })),
+  });
+  const msCity = multiSelect(document.getElementById('msCity'), {
+    all: 'Все города', label: 'Города', set: () => state.filters.cities,
+    getOptions: () => {
+      const cs = state.filters.countries.size ? [...state.filters.countries].sort((a, b) => a.localeCompare(b, 'ru')) : countries();
+      return cs.flatMap(c => {
+        const cities = [...new Set(state.trips.filter(t => t.country === c).map(t => t.city))].sort((a, b) => a.localeCompare(b, 'ru'));
+        return [{ group: c }, ...cities.map(value => ({ value }))];
+      });
+    },
+  });
+
+  function onFiltersChanged() {
+    // Город зависит от выбранных стран
+    if (state.filters.countries.size) {
+      const allowed = new Set(state.trips.filter(t => state.filters.countries.has(t.country)).map(t => t.city));
+      [...state.filters.cities].forEach(c => { if (!allowed.has(c)) state.filters.cities.delete(c); });
+      msCity.update();
+    }
+    render();
+  }
+
+  /* ---------- Фильтры ---------- */
+  const fSearch = document.getElementById('fSearch'), fFrom = document.getElementById('fFrom'),
+        fTo = document.getElementById('fTo'), fOverdue = document.getElementById('fOverdue');
+  fSearch.addEventListener('input', () => { state.filters.q = fSearch.value; render(); });
+  fFrom.addEventListener('change', () => { state.filters.from = fFrom.value; if (fTo.value && fFrom.value > fTo.value) { fTo.value = fFrom.value; state.filters.to = fTo.value; } render(); });
+  fTo.addEventListener('change', () => { state.filters.to = fTo.value; if (fFrom.value && fTo.value < fFrom.value) { fFrom.value = fTo.value; state.filters.from = fFrom.value; } render(); });
+  fOverdue.addEventListener('change', () => { state.filters.overdueOnly = fOverdue.checked; render(); });
+  document.getElementById('fReset').addEventListener('click', () => {
+    Object.assign(state.filters, { q: '', from: '', to: '', overdueOnly: false });
+    state.filters.countries.clear(); state.filters.cities.clear();
+    fSearch.value = fFrom.value = fTo.value = ''; fOverdue.checked = false;
+    msCountry.update(); msCity.update(); render();
+  });
+
+  /* ---------- Разделы: сортировка, сворачивание, меню ---------- */
+  const menu = document.getElementById('menu');
+  let menuTrip = null;
+
+  document.getElementById('sections').addEventListener('click', e => {
+    const sortBtn = e.target.closest('[data-sort]');
+    if (sortBtn) {
+      const [id, key] = sortBtn.dataset.sort.split(':');
+      const st = state.sort[id];
+      st.dir = st.key === key ? -st.dir : 1; st.key = key;
+      render();
+      document.querySelector(`[data-sort="${id}:${key}"]`)?.focus();
+      return;
+    }
+    const tg = e.target.closest('[data-toggle]');
+    if (tg) {
+      const id = +tg.dataset.toggle;
+      state.collapsed.has(id) ? state.collapsed.delete(id) : state.collapsed.add(id);
+      store.set('collapsed', [...state.collapsed]);
+      render();
+      document.querySelector(`[data-toggle="${id}"]`)?.focus();
+      return;
+    }
+    const act = e.target.closest('[data-action]');
+    if (act) { e.stopPropagation(); openMenu(act); }
+  });
+
+  function openMenu(btn) {
+    const t = state.trips.find(x => x.id === btn.dataset.action);
+    if (!t) return;
+    if (menu.classList.contains('open') && menuTrip === t) { closeMenu(); return; }
+    menuTrip = t;
+    const next = t.status < 6 ? S(t.status + 1) : null, prev = t.status > 1 ? S(t.status - 1) : null;
+    menu.innerHTML = `<div class="mh">${esc(shortName(t.name))} · сейчас: ${esc(S(t.status).short)}</div>
+      ${next ? `<button type="button" role="menuitem" data-to="${next.id}"><span class="dot" style="background:${next.color}"></span>Перевести в «${esc(next.name)}»</button>` : ''}
+      ${next && prev ? '<div class="sep"></div>' : ''}
+      ${prev ? `<button type="button" role="menuitem" class="back" data-to="${prev.id}"><span class="dot" style="background:${prev.color}"></span>Вернуть в «${esc(prev.name)}»</button>` : ''}`;
+    menu.classList.add('open');
+    const r = btn.getBoundingClientRect(), w = menu.offsetWidth, h = menu.offsetHeight;
+    let left = r.right - w + window.scrollX, top = r.bottom + 4 + window.scrollY;
+    if (r.bottom + h + 8 > window.innerHeight) top = r.top - h - 4 + window.scrollY;
+    menu.style.left = Math.max(8 + window.scrollX, left) + 'px';
+    menu.style.top = top + 'px';
+    menu.querySelector('button')?.focus();
+  }
+  function closeMenu() { menu.classList.remove('open'); menuTrip = null; }
+  menu.addEventListener('click', e => {
+    const b = e.target.closest('[data-to]');
+    if (!b) return;
+    const t = menuTrip; closeMenu();
+    askConfirm(t, +b.dataset.to);
+  });
+  menu.addEventListener('keydown', e => {
+    const items = [...menu.querySelectorAll('button')], i = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  });
+
+  /* ---------- Смена статуса ---------- */
+  const dlgConfirm = document.getElementById('dlgConfirm'), cComment = document.getElementById('confirmComment'),
+        cOk = document.getElementById('confirmOk'), cNote = document.getElementById('confirmNote');
+  let pending = null;
+
+  function askConfirm(t, to) {
+    const back = to < t.status;
+    pending = { t, to, back };
+    document.getElementById('confirmText').textContent = `Перевести командировку ${genitive(t.name)} в статус «${S(to).name}»?`;
+    document.getElementById('confirmLbl').textContent = back ? 'Комментарий (обязательно)' : 'Комментарий (необязательно)';
+    cNote.hidden = !back;
+    cComment.value = '';
+    cOk.textContent = back ? 'Вернуть' : 'Перевести';
+    cOk.disabled = back;
+    dlgConfirm.showModal();
+    cComment.focus();
+  }
+  cComment.addEventListener('input', () => { if (pending?.back) cOk.disabled = !cComment.value.trim(); });
+  dlgConfirm.addEventListener('close', () => {
+    if (dlgConfirm.returnValue === 'ok' && pending) applyChange(pending.t, pending.to, cComment.value.trim());
+    pending = null;
+  });
+
+  function applyChange(t, to, comment) {
+    const snapshot = { status: t.status, advancePaid: t.advancePaid, submitted: t.submitted, processed: t.processed };
+    const from = t.status, T = today();
+    t.status = to;
+    if (to === 3 && !t.advancePaid) t.advancePaid = T;
+    if (to === 5 && !t.submitted) t.submitted = T;
+    if (to === 6 && !t.processed) t.processed = T;
+    state.saving.add(t.id);
+    render();
+    // Имитация запроса к HTTP-сервису 1С через backend
+    setTimeout(() => {
+      state.saving.delete(t.id);
+      if (settings.fail1c) {
+        Object.assign(t, snapshot);
+        toast(`1С вернула ошибку: «Документ заблокирован другим пользователем». Статус ${shortName(t.name)} возвращён в «${S(from).short}».`, true);
+      } else {
+        state.log.push({ time: new Date(), user: roleName(), kind: 'status', trip: `${t.id}, ${shortName(t.name)}`, from, to, comment });
+        toast(`${shortName(t.name)}: «${S(from).short}» → «${S(to).short}»`);
+      }
+      render();
+    }, 900);
+  }
+
+  /* ---------- Синхронизация ---------- */
+  const btnRefresh = document.getElementById('btnRefresh'), stale = document.getElementById('stale');
+  function autoTransition() {
+    // Переход 3 → 4 по дате окончания
+    const T = today();
+    state.trips.filter(t => t.status === 3 && t.end < T && !state.saving.has(t.id)).forEach(t => {
+      t.status = 4;
+      state.log.push({ time: new Date(), user: 'Система', kind: 'status', trip: `${t.id}, ${shortName(t.name)}`, from: 3, to: 4, comment: 'Автоматически по дате окончания командировки' });
+    });
+  }
+  function refresh(manual) {
+    btnRefresh.disabled = true;
+    btnRefresh.querySelector('svg').classList.add('spin');
+    btnRefresh.querySelector('span').textContent = 'Обновление…';
+    setTimeout(() => {
+      btnRefresh.disabled = false;
+      btnRefresh.querySelector('svg').classList.remove('spin');
+      btnRefresh.querySelector('span').textContent = 'Обновить';
+      if (settings.offline1c) {
+        stale.textContent = `1С недоступна. Показан последний сохранённый срез: данные актуальны на ${fmtDT(state.lastSync)}.`;
+        stale.classList.add('show');
+        if (manual) toast('Не удалось связаться с 1С', true);
+      } else {
+        autoTransition();
+        state.lastSync = new Date();
+        stale.classList.remove('show');
+        if (manual) toast('Данные обновлены');
+      }
+      render();
+    }, 700);
+  }
+  btnRefresh.addEventListener('click', () => refresh(true));
+  let timer = null;
+  const schedule = () => { clearInterval(timer); timer = setInterval(() => refresh(false), settings.interval * 60000); };
+
+  /* ---------- Журнал ---------- */
+  const dlgLog = document.getElementById('dlgLog');
+  document.getElementById('btnLog').addEventListener('click', () => {
+    const rows = [...state.log].reverse().map(l => `<tr>
+      <td class="num" style="white-space:nowrap">${fmtDT(l.time)}</td>
+      <td>${esc(l.user)}</td>
+      <td>${l.kind === 'login' ? '<span class="muted">Вход в систему</span>' : esc(l.trip)}</td>
+      <td>${l.kind === 'status' ? `${esc(S(l.from).short)} → ${esc(S(l.to).short)}` : ''}</td>
+      <td>${l.comment ? esc(l.comment) : '<span class="muted">—</span>'}</td></tr>`).join('');
+    document.getElementById('logBody').innerHTML = `<table><thead><tr><th style="padding:8px 12px">Когда</th><th style="padding:8px 12px">Кто</th><th style="padding:8px 12px">Командировка</th><th style="padding:8px 12px">Изменение</th><th style="padding:8px 12px">Комментарий</th></tr></thead><tbody>${rows}</tbody></table>`;
+    dlgLog.showModal();
+  });
+  dlgLog.addEventListener('click', e => { if (e.target.closest('[data-close]') || e.target === dlgLog) dlgLog.close(); });
+
+  /* ---------- Настройки ---------- */
+  const dlgSettings = document.getElementById('dlgSettings');
+  const $ = id => document.getElementById(id);
+  $('btnSettings').addEventListener('click', () => {
+    $('sN').value = settings.N; $('sM').value = settings.M; $('sInt').value = settings.interval;
+    $('sRole').value = settings.role; $('sFail').checked = settings.fail1c; $('sOffline').checked = settings.offline1c;
+    dlgSettings.showModal();
+  });
+  dlgSettings.addEventListener('close', () => {
+    if (dlgSettings.returnValue !== 'ok') return;
+    const num = (v, def, min, max) => { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def; };
+    settings.N = num($('sN').value, defaults.N, 0, 30);
+    settings.M = num($('sM').value, defaults.M, 1, 60);
+    settings.interval = num($('sInt').value, defaults.interval, 1, 240);
+    settings.role = $('sRole').value;
+    settings.fail1c = $('sFail').checked;
+    settings.offline1c = $('sOffline').checked;
+    store.set('settings', settings);
+    schedule(); render(); toast('Настройки сохранены');
+  });
+
+  /* ---------- Подсказки, уведомления, общее ---------- */
+  const tip = document.getElementById('tip');
+  const showTip = el => {
+    tip.textContent = el.dataset.tip; tip.classList.add('show');
+    const r = el.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    let top = r.bottom + 6; if (top + h > window.innerHeight - 8) top = r.top - h - 6;
+    tip.style.left = Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2)) + 'px';
+    tip.style.top = top + 'px';
+  };
+  const hideTip = () => tip.classList.remove('show');
+  document.addEventListener('mouseover', e => { const el = e.target.closest('[data-tip]'); el ? showTip(el) : hideTip(); });
+  document.addEventListener('focusin', e => { const el = e.target.closest('[data-tip]'); el ? showTip(el) : hideTip(); });
+  document.addEventListener('scroll', hideTip, { passive: true });
+
+  function toast(msg, error) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (error ? ' error' : '');
+    el.textContent = msg;
+    document.getElementById('toasts').appendChild(el);
+    setTimeout(() => el.remove(), error ? 6000 : 3000);
+  }
+
+  document.getElementById('summary').addEventListener('click', e => {
+    const c = e.target.closest('[data-goto]');
+    if (!c) return;
+    const id = +c.dataset.goto;
+    if (state.collapsed.has(id)) { state.collapsed.delete(id); store.set('collapsed', [...state.collapsed]); render(); }
+    document.getElementById('sec-' + id).scrollIntoView({ block: 'start' });
+  });
+
+  document.addEventListener('click', () => { closeMenu(); closeAllPanels(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (menu.classList.contains('open')) { const id = menuTrip?.id; closeMenu(); document.querySelector(`[data-action="${id}"]`)?.focus(); }
+      closeAllPanels(); hideTip();
+    }
+  });
+
+  const fw = document.getElementById('filtersWrap');
+  const measure = () => document.documentElement.style.setProperty('--sticky-h', fw.offsetHeight + 'px');
+  window.addEventListener('resize', () => { measure(); closeMenu(); });
+  window.addEventListener('scroll', () => { fw.classList.toggle('stuck', fw.getBoundingClientRect().top <= 0 && window.scrollY > 0); }, { passive: true });
+
+  render();
+  measure();
+  schedule();
+})();
+</script>
+</body>
+</html>
